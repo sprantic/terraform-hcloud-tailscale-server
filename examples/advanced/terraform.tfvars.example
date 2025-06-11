@@ -1,0 +1,19 @@
+# Hetzner Cloud API token
+# Get this from: https://console.hetzner.cloud/projects
+hcloud_token = "your-hetzner-cloud-api-token"
+
+# Tailscale API key
+# Get this from: https://login.tailscale.com/admin/settings/keys
+tailscale_api_key = "your-tailscale-api-key"
+
+# Tailscale tailnet name
+# This is usually your organization name or email domain
+tailscale_tailnet = "your-tailnet-name"
+
+# SSH key name in Hetzner Cloud
+# Upload your SSH key first at: https://console.hetzner.cloud/projects
+ssh_key_name = "your-ssh-key-name"
+
+# Custom username for all servers (optional)
+# This will be the user created on all servers instead of "selfscrum"
+custom_username = "devops"
