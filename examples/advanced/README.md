@@ -114,14 +114,6 @@ You can modify this example to:
 - Use different usernames per server
 - Add additional firewall rules if needed
 
-## Cost Estimation
-
-Based on Hetzner Cloud pricing (as of 2024):
-- Web Server (cx22): ~€5.83/month
-- Database Server (cx32): ~€11.90/month  
-- Monitoring Server (cx22): ~€5.83/month
-- **Total**: ~€23.56/month
-
 ## Clean up
 
 To destroy all resources:
