@@ -29,12 +29,14 @@ provider "tailscale" {
 module "web_server" {
   source = "../../"
 
-  server_name = "web-server"
-  image       = "ubuntu-22.04"
-  server_type = "cx22"
-  location    = "fsn1"
-  ssh_keys    = [var.ssh_key_name]
-  username    = var.custom_username
+  server_name       = "web-server"
+  image             = "ubuntu-22.04"
+  server_type       = "cx22"
+  location          = "fsn1"
+  ssh_keys          = [var.ssh_key_name]
+  username          = var.custom_username
+  tailscale_api_key = var.tailscale_api_key
+  tailscale_tailnet = var.tailscale_tailnet
 
   # Install Docker and run a web server
   runcmd = <<-EOT
@@ -55,12 +57,14 @@ module "web_server" {
 module "database_server" {
   source = "../../"
 
-  server_name = "db-server"
-  image       = "ubuntu-22.04"
-  server_type = "cx32"
-  location    = "nbg1"
-  ssh_keys    = [var.ssh_key_name]
-  username    = var.custom_username
+  server_name       = "db-server"
+  image             = "ubuntu-22.04"
+  server_type       = "cx32"
+  location          = "nbg1"
+  ssh_keys          = [var.ssh_key_name]
+  username          = var.custom_username
+  tailscale_api_key = var.tailscale_api_key
+  tailscale_tailnet = var.tailscale_tailnet
 
   # Install PostgreSQL
   runcmd = <<-EOT
@@ -90,12 +94,14 @@ module "database_server" {
 module "monitoring_server" {
   source = "../../"
 
-  server_name = "monitoring-server"
-  image       = "ubuntu-22.04"
-  server_type = "cx22"
-  location    = "hel1"
-  ssh_keys    = [var.ssh_key_name]
-  username    = var.custom_username
+  server_name       = "monitoring-server"
+  image             = "ubuntu-22.04"
+  server_type       = "cx22"
+  location          = "hel1"
+  ssh_keys          = [var.ssh_key_name]
+  username          = var.custom_username
+  tailscale_api_key = var.tailscale_api_key
+  tailscale_tailnet = var.tailscale_tailnet
 
   # Install Docker and run monitoring stack
   runcmd = <<-EOT

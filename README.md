@@ -50,11 +50,13 @@ terraform {
 module "tailscale_server" {
   source = "./path/to/this/module"
 
-  server_name = "my-tailscale-server"
-  image       = "ubuntu-22.04"
-  server_type = "cx22"
-  location    = "nbg1"
-  ssh_keys    = ["my-ssh-key"]
+  server_name        = "my-tailscale-server"
+  image              = "ubuntu-22.04"
+  server_type        = "cx22"
+  location           = "nbg1"
+  ssh_keys           = ["my-ssh-key"]
+  tailscale_api_key  = var.tailscale_api_key
+  tailscale_tailnet  = var.tailscale_tailnet
 }
 ```
 
@@ -64,20 +66,22 @@ module "tailscale_server" {
 module "tailscale_server" {
   source = "./path/to/this/module"
 
-  server_name = "web-server"
-  image       = "ubuntu-22.04"
-  server_type = "cx22"
-  location    = "fsn1"
-  ssh_keys    = ["my-ssh-key"]
-  username    = "myuser"  # Custom username instead of default "sprantic"
+  server_name        = "web-server"
+  image              = "ubuntu-22.04"
+  server_type        = "cx22"
+  location           = "fsn1"
+  ssh_keys           = ["my-ssh-key"]
+  username           = "myuser"  # Custom username instead of default "sprantic"
+  tailscale_api_key  = var.tailscale_api_key
+  tailscale_tailnet  = var.tailscale_tailnet
   
   # Custom commands to run after Tailscale setup
   runcmd = <<-EOT
-    # Install Docker
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sh get-docker.sh
+    # Install additional software
+    apt-get update
+    apt-get install -y htop
     
-    # Start a web server
+    # Start a web server (Docker is already installed by the module)
     docker run -d -p 80:80 nginx
   EOT
 }
@@ -85,6 +89,50 @@ module "tailscale_server" {
 output "server_ip" {
   value = module.tailscale_server.ip_address
 }
+```
+
+### Docker Compose Example
+
+```hcl
+module "tailscale_server" {
+  source = "./path/to/this/module"
+
+  server_name        = "web-app-server"
+  image              = "ubuntu-22.04"
+  server_type        = "cx22"
+  location           = "fsn1"
+  ssh_keys           = ["my-ssh-key"]
+  tailscale_api_key  = var.tailscale_api_key
+  tailscale_tailnet  = var.tailscale_tailnet
+  
+  # Docker Compose configuration from local file
+  docker_compose_project_name = "webapp"
+  docker_compose_yaml = file("${path.module}/docker-compose.yml")
+}
+```
+
+**docker-compose.yml:**
+```yaml
+version: '3.8'
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    restart: unless-stopped
+  
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    
+  app:
+    image: node:18-alpine
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+    restart: unless-stopped
 ```
 
 ## Examples
@@ -124,6 +172,10 @@ terraform apply
 | ssh_keys | The public key that will be used to check ssh access | `list(string)` | n/a | yes |
 | runcmd | The runcommand part of the cloud_init script | `string` | `""` | no |
 | username | The username for the created user on the server | `string` | `"sprantic"` | no |
+| tailscale_api_key | Tailscale API key for device management (required for automatic cleanup on destroy) | `string` | n/a | yes |
+| tailscale_tailnet | Tailscale tailnet name (e.g., 'example.com' or 'user@domain.com') | `string` | n/a | yes |
+| docker_compose_yaml | Docker Compose YAML configuration to be deployed on the server | `string` | `""` | no |
+| docker_compose_project_name | Name for the Docker Compose project (defaults to server name) | `string` | `""` | no |
 
 ### Available Hetzner Cloud Locations
 
@@ -162,13 +214,15 @@ The module creates a firewall with the following rules:
 The module uses a multi-part cloud-init configuration that:
 
 1. **Creates a user**: Configurable username (default: `sprantic`) with sudo privileges
-2. **Installs packages**: fail2ban, ufw, ifupdown
+2. **Installs packages**: Basic packages and Docker with Docker Compose
 3. **Updates system**: Runs package update and upgrade
-4. **Installs Tailscale**: Downloads and installs the latest Tailscale client
-5. **Configures networking**: Enables IP forwarding for potential exit node usage
-6. **Joins Tailscale network**: Uses the generated auth key to join
-7. **Enables Tailscale SSH**: Allows SSH access through Tailscale
-8. **Runs custom commands**: Executes any commands provided in `runcmd` variable
+4. **Installs Docker**: Sets up Docker CE with proper user permissions
+5. **Installs Tailscale**: Downloads and installs the latest Tailscale client
+6. **Configures networking**: Enables IP forwarding for potential exit node usage
+7. **Joins Tailscale network**: Uses the generated auth key to join
+8. **Enables Tailscale SSH**: Allows SSH access through Tailscale
+9. **Deploys Docker Compose**: Automatically deploys provided Docker Compose configuration
+10. **Runs custom commands**: Executes any commands provided in `runcmd` variable
 
 ## Environment Variables
 
@@ -190,6 +244,7 @@ export TAILSCALE_TAILNET="your-tailnet-name"
 - fail2ban is installed for additional protection against brute force attacks
 - The Tailscale auth key is ephemeral and expires after 1 hour
 - All packages are updated during initial setup
+- Automatic device cleanup prevents orphaned entries in Tailscale admin console
 
 ## Accessing Your Server
 
@@ -200,6 +255,96 @@ After deployment, you can access your server through Tailscale:
 ssh <username>@<server-tailscale-ip>
 
 # Or use the Tailscale web interface for browser-based SSH
+```
+
+## Automatic Tailscale Device Cleanup
+
+This module includes automatic cleanup of Tailscale devices when you run `terraform destroy`. This prevents orphaned device entries from remaining in your Tailscale admin console.
+
+### How it works:
+1. When the server is created, it joins Tailscale with a specific hostname matching the `server_name`
+2. On `terraform destroy`, a local provisioner automatically:
+   - Queries the Tailscale API to find the device by hostname
+   - Removes the device from your Tailscale network
+   - Cleans up any associated device entries
+
+### Requirements:
+- `tailscale_api_key`: A Tailscale API key with device management permissions
+- `tailscale_tailnet`: Your Tailscale tailnet identifier
+
+### API Key Permissions:
+Your Tailscale API key needs the following permissions:
+- **Devices**: Read and Write access to manage device lifecycle
+
+You can create an API key at: https://login.tailscale.com/admin/settings/keys
+
+## Docker Compose Integration
+
+This module includes built-in support for deploying Docker Compose applications automatically during server initialization.
+
+### How it works:
+1. **Docker Installation**: Docker and Docker Compose are automatically installed during cloud-init
+2. **Configuration Deployment**: Your Docker Compose YAML is written to `/opt/docker-compose/<project-name>/docker-compose.yml`
+3. **Automatic Startup**: After Docker is ready, the compose application is automatically started
+4. **Project Management**: Uses a configurable project name (defaults to server name) for isolation
+5. **Base64 Encoding**: Uses secure base64 encoding to avoid YAML parsing conflicts
+
+### Usage:
+```hcl
+module "my_server" {
+  source = "./path/to/module"
+  
+  # ... other required variables ...
+  
+  # Recommended: Use local file
+  docker_compose_yaml = file("${path.module}/docker-compose.yml")
+  docker_compose_project_name = "myapp"  # Optional, defaults to server_name
+}
+```
+
+**Alternative: Inline YAML (not recommended for complex configurations):**
+```hcl
+docker_compose_yaml = <<-EOT
+  version: '3.8'
+  services:
+    web:
+      image: nginx:alpine
+      ports:
+        - "80:80"
+EOT
+```
+
+### Features:
+- **Automatic image pulling**: Images are pulled before starting services
+- **Health monitoring**: Shows service status after deployment
+- **Error handling**: Includes timeouts and error reporting
+- **Project isolation**: Uses Docker Compose project names for isolation
+
+### File locations on server:
+- Docker Compose file: `/opt/docker-compose/<project-name>/docker-compose.yml`
+- Working directory: `/opt/docker-compose/<project-name>/`
+- Logs: Available via `docker compose logs`
+
+### Managing the application:
+```bash
+# SSH into the server via Tailscale
+ssh username@server-tailscale-ip
+
+# Navigate to project directory (replace <project-name> with your project name)
+cd /opt/docker-compose/<project-name>
+
+# View running services (with project name)
+COMPOSE_PROJECT_NAME=<project-name> docker compose ps
+
+# View logs
+COMPOSE_PROJECT_NAME=<project-name> docker compose logs
+
+# Restart services
+COMPOSE_PROJECT_NAME=<project-name> docker compose restart
+
+# Update and redeploy
+COMPOSE_PROJECT_NAME=<project-name> docker compose pull
+COMPOSE_PROJECT_NAME=<project-name> docker compose up -d
 ```
 
 ## Troubleshooting
@@ -231,4 +376,4 @@ This module is released under the MIT License. See LICENSE file for details.
 
 ## Authors
 
-Created and maintained by the Sprantic team.
+Created and maintained by the sprantic team.
