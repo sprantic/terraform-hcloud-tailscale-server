@@ -1,6 +1,6 @@
 # Terraform Hetzner Cloud Tailscale Server Module
 
-A Terraform module to create a Hetzner Cloud virtual machine that automatically joins a Tailscale network with secure firewall configuration.
+A streamlined Terraform module to create a Hetzner Cloud virtual machine that automatically joins a Tailscale network with secure firewall configuration and automatic cleanup.
 
 ## Features
 
@@ -8,7 +8,9 @@ A Terraform module to create a Hetzner Cloud virtual machine that automatically 
 - 🔒 **Secure Firewall**: Pre-configured firewall rules optimized for Tailscale connectivity
 - 🔑 **SSH-less Access**: Uses Tailscale SSH for secure remote access (no need for port 22)
 - ⚡ **Cloud-init Integration**: Supports custom user commands via cloud-init
-- 🛡️ **Security Hardening**: Includes fail2ban and ufw packages for additional security
+- 🧹 **Automatic Cleanup**: Removes Tailscale devices from network when infrastructure is destroyed
+- 🐳 **Docker Ready**: Includes Docker and Docker Compose pre-installed
+- �️ **Security Hardening**: Includes fail2ban and ufw packages for additional security
 
 ## Architecture
 
@@ -17,6 +19,7 @@ This module creates:
 - A Tailscale auth key (ephemeral, preauthorized)
 - A firewall with Tailscale-optimized rules
 - Cloud-init configuration for automatic Tailscale setup
+- Automatic Tailscale device cleanup on destroy
 
 ## Prerequisites
 
