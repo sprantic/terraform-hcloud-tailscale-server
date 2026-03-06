@@ -89,6 +89,11 @@ data "cloudinit_config" "idp" {
         # Run Tailscale setup with timeout and error handling
         - [ bash, -c, "timeout 180 /tmp/setup-tailscale.sh || { echo 'Tailscale setup failed or timed out'; exit 1; }" ]
         
+        # Run custom commands (if provided)
+        %{~ if var.runcmd != "" }
+        - [ bash, -c, "${var.runcmd}" ]
+        %{~ endif }
+
         # Setup Docker Compose application if provided
         - [ bash, -c, "echo '${var.docker_compose_yaml != "" ? base64encode(templatefile("${path.module}/scripts/setup-docker-compose.sh", { docker_compose_yaml = var.docker_compose_yaml, project_name = var.docker_compose_project_name != "" ? var.docker_compose_project_name : var.server_name, username = var.username })) : base64encode("#!/bin/bash\necho 'No Docker Compose configuration provided'")}' | base64 -d | bash" ]
         
