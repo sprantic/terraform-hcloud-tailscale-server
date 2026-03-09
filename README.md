@@ -138,6 +138,37 @@ services:
     restart: unless-stopped
 ```
 
+### GitLab Deployment
+
+This module is used as the base for [terraform-hcloud-gitlab](../terraform-hcloud-gitlab), which wraps it with GitLab-specific configuration:
+
+```hcl
+module "tailscale_server" {
+  source = "../terraform-hcloud-tailscale-server"
+
+  server_name       = "sprantic-gitlab"
+  image             = "ubuntu-22.04"
+  server_type       = "cx33"   # 4 vCPU / 8GB RAM minimum for GitLab
+  location          = "nbg1"
+  ssh_keys          = ["my-ssh-key"]
+  tailscale_api_key = var.tailscale_api_key
+  tailscale_tailnet = var.tailscale_tailnet
+
+  docker_compose_project_name = "gitlab"
+  docker_compose_yaml = templatefile("templates/docker-compose.yml.tftpl", {
+    gitlab_version              = "18.7.5-ce.0"
+    external_url                = "http://sprantic-gitlab"
+    external_host               = "sprantic-gitlab"
+    gitlab_omnibus_extra_config = ""
+  })
+
+  # Swap + post-deploy commands (e.g. backup cron) passed via runcmd
+  runcmd = "fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile"
+}
+```
+
+GitLab is accessed via Tailscale MagicDNS at `http://<server_name>` — no public ports exposed. The `runcmd` variable is executed as a post-deploy script after Docker Compose starts. Avoid injecting multiline heredocs or special characters; keep it to simple shell commands.
+
 ## Examples
 
 This module includes several examples to help you get started:
