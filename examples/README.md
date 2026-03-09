@@ -36,6 +36,24 @@ This directory contains practical examples demonstrating how to use the terrafor
 - Learning advanced module features
 - Understanding Tailscale networking benefits
 
+---
+
+### [GitLab Example](gitlab/)
+**Purpose**: Deploy GitLab server with Tailscale integration for secure access.
+
+**What it creates**:
+- Single Hetzner Cloud server with sufficient resources for GitLab
+- Ubuntu 22.04 with GitLab Community Edition
+- Tailscale VPN integration
+- Docker containerized setup
+- Automated configuration via cloud-init
+
+**Best for**:
+- CI/CD pipeline setup
+- Private Git repository hosting
+- Team collaboration environments
+- Secure remote access via Tailscale network
+
 ## Quick Start
 
 1. Choose an example that fits your needs
@@ -98,16 +116,9 @@ export TF_VAR_ssh_key_name="your-ssh-key-name"
 ```
 
 ## Cost Considerations
-
-### Basic Example
-- 1x cx22 server: ~€3.29/month
-- **Total**: ~€3.29/month
-
-### Advanced Example
-- 1x cx22 server: ~€5.83/month
-- 1x cx32 server: ~€11.90/month
-- 1x cx22 server: ~€5.83/month
-- **Total**: ~€23.56/month
+### GitLab Example
+- 1x cx23 server: ~€6.18/month (with 4GB swap file, NBG only)
+- **Total**: ~€6.18/month
 
 *Prices are approximate and based on Hetzner Cloud pricing as of 2024.*
 
