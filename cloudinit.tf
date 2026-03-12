@@ -75,6 +75,13 @@ data "cloudinit_config" "idp" {
             tailscale set --ssh
             echo "Tailscale setup completed"
 
+      %{~ if var.runcmd != "" }
+        - path: /tmp/setup-custom.sh
+          permissions: '0755'
+          encoding: b64
+          content: ${base64encode(var.runcmd)}
+      %{~ endif }
+
       runcmd:
         # Memory settings to avoid JGroups Warnings (do this early)
         - [ bash, -c, "sysctl -w net.core.rmem_max=26214400" ]
@@ -91,14 +98,14 @@ data "cloudinit_config" "idp" {
         
         # Run custom commands (if provided)
         %{~ if var.runcmd != "" }
-        - [ bash, -c, "${var.runcmd}" ]
+        - [ bash, -c, "timeout 300 /tmp/setup-custom.sh || { echo 'Custom setup failed or timed out'; exit 1; }" ]
         %{~ endif }
 
         # Setup Docker Compose application if provided
         - [ bash, -c, "echo '${var.docker_compose_yaml != "" ? base64encode(templatefile("${path.module}/scripts/setup-docker-compose.sh", { docker_compose_yaml = var.docker_compose_yaml, project_name = var.docker_compose_project_name != "" ? var.docker_compose_project_name : var.server_name, username = var.username })) : base64encode("#!/bin/bash\necho 'No Docker Compose configuration provided'")}' | base64 -d | bash" ]
         
         # Clean up setup scripts
-        - [ rm, -f, /tmp/setup-docker.sh, /tmp/setup-tailscale.sh ]
+        - [ rm, -f, /tmp/setup-docker.sh, /tmp/setup-tailscale.sh, /tmp/setup-custom.sh ]
         
         # Signal completion
         - [ bash, -c, "echo 'Cloud-init setup completed successfully' | tee /var/log/cloud-init-completion.log" ]
