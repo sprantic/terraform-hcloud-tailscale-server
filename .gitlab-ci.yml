@@ -1,0 +1,16 @@
+stages:
+  - deploy
+
+upload-module:
+  stage: deploy
+  image: curlimages/curl:latest
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  script:
+    - MODULE_VERSION=$(echo $CI_COMMIT_TAG | sed 's/^v//')
+    - tar czf /tmp/module.tgz --exclude=.git --exclude=.gitlab-ci.yml --exclude=examples .
+    - 'curl --fail --header "JOB-TOKEN: $CI_JOB_TOKEN"
+       --upload-file /tmp/module.tgz
+       "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/terraform/modules/${CI_PROJECT_NAME}/${TERRAFORM_MODULE_SYSTEM}/${MODULE_VERSION}/file"'
+  variables:
+    TERRAFORM_MODULE_SYSTEM: "hcloud"
