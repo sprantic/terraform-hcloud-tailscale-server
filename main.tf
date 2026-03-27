@@ -85,6 +85,16 @@ resource "hcloud_firewall" "server_firewall" {
     ]
   }
 
+  rule {
+    direction = "out"
+    protocol  = "udp"
+    port      = "53"
+    destination_ips = [
+      "0.0.0.0/0",
+      "::/0"
+    ]
+  }
+
   # we can skip that last rule later if everything runs stable
   rule {
     direction    = "out"
