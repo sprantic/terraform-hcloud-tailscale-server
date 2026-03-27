@@ -51,6 +51,12 @@ variable "tailscale_tailnet" {
     type = string
 }
 
+variable "enable_docker_dns_bridge" {
+    description = "Install dnsmasq to bridge Tailscale DNS into Docker containers"
+    type = bool
+    default = true
+}
+
 variable "docker_compose_yaml" {
     description = "Docker Compose YAML configuration to be deployed on the server"
     type = string

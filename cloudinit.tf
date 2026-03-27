@@ -75,6 +75,30 @@ data "cloudinit_config" "idp" {
             tailscale set --ssh
             echo "Tailscale setup completed"
 
+      %{~ if var.enable_docker_dns_bridge }
+        - path: /tmp/setup-dnsmasq.sh
+          permissions: '0755'
+          content: |
+            #!/bin/bash
+            set -e
+            echo "Setting up dnsmasq for Docker DNS bridging..."
+            apt-get install -y dnsmasq
+            cat > /etc/dnsmasq.d/tailscale-bridge.conf <<'DNSCONF'
+            listen-address=127.0.0.1
+            bind-interfaces
+            server=100.100.100.100
+            no-resolv
+            DNSCONF
+            systemctl stop systemd-resolved
+            systemctl disable systemd-resolved
+            systemctl mask systemd-resolved
+            rm -f /etc/resolv.conf
+            echo "nameserver 127.0.0.1" > /etc/resolv.conf
+            systemctl enable dnsmasq
+            systemctl restart dnsmasq
+            echo "dnsmasq setup completed"
+      %{~ endif }
+
       %{~ if var.runcmd != "" }
         - path: /tmp/setup-custom.sh
           permissions: '0755'
@@ -96,6 +120,11 @@ data "cloudinit_config" "idp" {
         # Run Tailscale setup with timeout and error handling
         - [ bash, -c, "timeout 180 /tmp/setup-tailscale.sh || { echo 'Tailscale setup failed or timed out'; exit 1; }" ]
         
+        # Setup dnsmasq for Docker DNS bridging (after Tailscale, before Docker Compose)
+        %{~ if var.enable_docker_dns_bridge }
+        - [ bash, -c, "timeout 60 /tmp/setup-dnsmasq.sh || { echo 'dnsmasq setup failed or timed out'; exit 1; }" ]
+        %{~ endif }
+
         # Run custom commands (if provided)
         %{~ if var.runcmd != "" }
         - [ bash, -c, "timeout 300 /tmp/setup-custom.sh || { echo 'Custom setup failed or timed out'; exit 1; }" ]
@@ -105,7 +134,7 @@ data "cloudinit_config" "idp" {
         - [ bash, -c, "echo '${var.docker_compose_yaml != "" ? base64encode(templatefile("${path.module}/scripts/setup-docker-compose.sh", { docker_compose_yaml = var.docker_compose_yaml, project_name = var.docker_compose_project_name != "" ? var.docker_compose_project_name : var.server_name, username = var.username })) : base64encode("#!/bin/bash\necho 'No Docker Compose configuration provided'")}' | base64 -d | bash" ]
         
         # Clean up setup scripts
-        - [ rm, -f, /tmp/setup-docker.sh, /tmp/setup-tailscale.sh, /tmp/setup-custom.sh ]
+        - [ rm, -f, /tmp/setup-docker.sh, /tmp/setup-tailscale.sh, /tmp/setup-dnsmasq.sh, /tmp/setup-custom.sh ]
         
         # Signal completion
         - [ bash, -c, "echo 'Cloud-init setup completed successfully' | tee /var/log/cloud-init-completion.log" ]
