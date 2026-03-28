@@ -57,6 +57,12 @@ variable "enable_docker_dns_bridge" {
     default = true
 }
 
+variable "dns_split_domains" {
+    description = "Domains routed to Tailscale Split DNS (via 100.100.100.100). Default: our.sprantic.ai and ts.net."
+    type = list(string)
+    default = ["our.sprantic.ai", "ts.net"]
+}
+
 variable "docker_compose_yaml" {
     description = "Docker Compose YAML configuration to be deployed on the server"
     type = string

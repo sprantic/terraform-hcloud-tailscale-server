@@ -83,15 +83,17 @@ data "cloudinit_config" "idp" {
             set -e
             echo "Setting up dnsmasq for Docker DNS bridging..."
             apt-get install -y dnsmasq
-            cat > /etc/dnsmasq.d/tailscale-bridge.conf <<'DNSCONF'
-            listen-address=127.0.0.1,172.17.0.1
+            TS_IP=$(tailscale ip -4)
+            echo "Detected Tailscale IP: $TS_IP"
+            cat > /etc/dnsmasq.d/tailscale-bridge.conf <<DNSCONF
+            listen-address=127.0.0.1,172.17.0.1,$TS_IP
             bind-dynamic
             no-resolv
             server=8.8.8.8
             server=1.1.1.1
-            server=/our.sprantic.ai/100.100.100.100
-            server=/auth.sprantic.ai/100.100.100.100
-            server=/ts.net/100.100.100.100
+            %{ for domain in var.dns_split_domains ~}
+            server=/${domain}/100.100.100.100
+            %{ endfor ~}
             DNSCONF
             systemctl stop systemd-resolved
             systemctl disable systemd-resolved
@@ -100,7 +102,7 @@ data "cloudinit_config" "idp" {
             printf "nameserver 127.0.0.1\nnameserver 172.17.0.1\n" > /etc/resolv.conf
             systemctl enable dnsmasq
             systemctl restart dnsmasq
-            echo "dnsmasq setup completed"
+            echo "dnsmasq setup completed (listening on 127.0.0.1, 172.17.0.1, $TS_IP)"
       %{~ endif }
 
       %{~ if var.runcmd != "" }
